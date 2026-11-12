@@ -1,0 +1,207 @@
+# Settings template for a city (version 2).
+#
+# How to use it:
+#   1. Copy this file to config/<city>.toml.
+#   2. Choose a method in each of the [demand], [vulnerability], [candidates] and [facilities] sections.
+#   3. Fill in the sections those methods use: replace every value marked  <-- REPLACE .
+#   4. Check your settings with
+#          uv run childcare-access check --config config/<city>.toml
+# You can delete the sections of methods you do not use. The tool never switches method by itself: if the data
+# for your chosen method are missing, `check` tells you what is missing and which other methods you could choose.
+#
+# Not settings: the three objectives, the rule that each child walks to the nearest open facility, and the checks
+# of the solver results are part of the method. Results built with a different demand or vulnerability method mean
+# something different and are not directly comparable (see docs/APPLYING_TO_ANOTHER_CITY.md).
+# Paths are relative to the repository folder, or absolute.
+
+[schema]
+version = 2
+
+[city]
+name = "Example City"                 # <-- REPLACE
+scenario = "example_city"             # <-- REPLACE: short name, used for node-file folders
+
+[crs]
+projected = 25832                     # <-- REPLACE: a projected CRS in metres covering the city
+
+[workspace]
+root = "workspace/example_city"       # <-- REPLACE: where build/solve/compare write (git-ignored)
+
+# ======================================================================== essential for every method
+[sources.districts]                   # district polygons (any vector format with a CRS)
+file = "data/example_city/districts.gpkg"   # <-- REPLACE
+id_column = "district_id"
+name_column = "district_name"
+id_width = 0                          # zero-pad IDs to this width (0 = keep as is)
+
+[osm]                                 # walking network: Overpass JSON of all highway ways (with tags) at a fixed date
+network_snapshot = "data/example_city/osm/highways.json"   # <-- REPLACE
+snapshot_timestamp = "YYYY-MM-DDThh:mm:ssZ"                # <-- REPLACE
+network_rule_set = "pedestrian_access_v3"   # walking rules interpret OSM tags as used in Germany
+cache_dir = "cache"                   # OSMnx cache (only for facilities.source = "osm_cache")
+
+[facilities]                          # existing childcare facilities
+source = "file"                       # "file" | "osm_cache"
+file = "data/example_city/facilities.geojson"      # <-- REPLACE (source = "file")
+id_column = "facility_id"
+# osm_tags = { amenity = "kindergarten" }          # source = "osm_cache": tags read from the OSMnx cache
+
+# ======================================================================== child demand
+[demand]
+mode = "census_hybrid"                # "census_hybrid" (census-grid allocation) | "building_area" (footprint allocation) | "direct"
+
+[population]                          # child totals per district (census_hybrid, building_area; optional for direct)
+file = "data/example_city/children.csv"            # <-- REPLACE
+layout = "wide"                       # "wide": one row per district | "long": the layout of config/muenster.toml
+district_id_column = "district_id"
+count_type = "projected"              # <-- REPLACE: "observed" | "projected" (you must state it)
+reference_year = 2026                 # <-- REPLACE: year the counts refer to
+source = "<-- REPLACE: publisher, table, date"
+children_0_5 = "children_0_5"         # the 0-5 column, or set age_0_2 and age_3_5 instead (0-5 = their sum)
+age_0_2 = ""
+age_3_5 = ""
+
+[demand.census]                       # census_hybrid: children on a regular grid (within-district shares)
+file = "data/example_city/census_grid.zip"         # <-- REPLACE: zip containing one CSV
+reference_year = 2022                 # <-- REPLACE: census year (appears in the demand description)
+sha256 = ""
+member_suffix = "grid.csv"
+separator = ";"
+encoding = "utf-8"
+crs = 3035
+cell_size_m = 100
+id_column = "cell_id"
+x_column = "x_centre"
+y_column = "y_centre"
+count_columns = ["children_0_2", "children_3_5"]  # summed to 0-5; one 0-5 column is also allowed
+
+[demand.direct]                       # direct: supplied child counts
+geometry = "points"                   # "points" (geocoded) | "polygons" (counts per area)
+file = "data/example_city/child_demand.gpkg"       # <-- REPLACE
+id_column = "id"
+children_0_5 = "children"             # or age_0_2 + age_3_5
+age_0_2 = ""
+age_3_5 = ""
+district_column = ""                  # "" = assign by location; if given, checked against the district polygons
+count_type = "observed"               # <-- REPLACE: "observed" | "projected"
+reference_year = 2024                 # <-- REPLACE
+source = "<-- REPLACE: register, aggregation, date"
+polygon_allocation = "building_area"  # polygons only: "building_area" (residential footprint shares in the polygon)
+                                      #   | "network_nodes" (EXPERIMENTAL: equal shares over the walk-network nodes in
+                                      #   the polygon; node density reflects how streets and paths are mapped, not
+                                      #   where children live; the nodes are allocation points, never observed
+                                      #   residences). Polygon centroids are never used.
+consistency = "report"                # with [population]: "report" (keep the supplied demand, report per district)
+                                      #   | "error" (stop if a district differs by more than the tolerance or lacks
+                                      #   direct demand). Direct demand is never rescaled.
+consistency_tolerance = 0.0           # children per district
+boundary_rule = "reject"              # polygons only, for a polygon crossing district boundaries:
+                                      #   "reject" | "split" (each part takes the children allocated to its buildings
+                                      #   or nodes, so totals are conserved)
+
+[buildings]                           # residential footprints (census_hybrid, building_area, polygon building_area,
+file = "data/example_city/buildings.gpkg"          #   residential-building candidates)   <-- REPLACE
+layer = "buildings"
+id_column = "building_id"
+function_column = "function"
+mixed_use_code = "mixed"
+sha256 = ""
+object_type_column = "object_type"    # whole building vs building part (ALKIS); keep the values below
+building_value = "building"
+part_value = "part"
+
+[buildings.residential_codes]
+residential = "Residential building"
+mixed = "Mixed use with housing"
+
+# [buildings.dormitories]             # optional: exclusion of student-only residences (as in Münster)
+# exclude_min_share = 0.9
+# report_min_share = 0.1
+# student_pattern = "student"
+# non_student_pattern = "family|senior"
+# decisions_file = "data/example_city/student_residence_decisions.csv"
+# decisions_sha256 = ""
+# building_tags_source = "none"
+
+# ======================================================================== vulnerability / priority group
+[vulnerability]
+mode = "four_indicator"               # "four_indicator" | "external_index" | "priority_districts"
+
+[vulnerability.four_indicator]        # the default index: four district percentages, scaled min-max, equal weights
+file = "data/example_city/social.csv"              # <-- REPLACE (long table, layout of config/muenster.toml)
+year = 2025                           # <-- REPLACE
+quantile = 0.75                       # priority group: index >= this quantile of the district values ("Q4" at 0.75)
+separator = ","
+encoding = "utf-8"
+decimal = "."
+area_column = "area"
+time_column = "date"
+indicator_column = "indicator"
+value_column = "value"
+district_code_pattern = '^(\d+)'
+
+[vulnerability.four_indicator.indicators]   # exactly these four index columns -> source labels (same concepts)
+pct_welfare_15_64 = "<-- REPLACE"
+pct_welfare_0_14 = "<-- REPLACE"
+pct_children_migration_background = "<-- REPLACE"
+pct_children_single_parent = "<-- REPLACE"
+
+[vulnerability.four_indicator.indicator_definitions]
+pct_welfare_15_64 = "<-- REPLACE: publisher, table, exact definition, deviations"
+pct_welfare_0_14 = "<-- REPLACE"
+pct_children_migration_background = "<-- REPLACE"
+pct_children_single_parent = "<-- REPLACE"
+
+[vulnerability.external_index]        # a documented index supplied per district
+file = "data/example_city/index.csv"               # <-- REPLACE
+separator = ","                       # the table's column separator ("," or ";")
+encoding = "utf-8"
+decimal = "."                         # "," if numbers are written like 6,4
+district_id_column = "district_id"
+value_column = "index"
+name = "<-- REPLACE: index name and year"
+definition = "<-- REPLACE: publisher, method, year"
+higher_is_more_vulnerable = true      # <-- REPLACE: ranking direction (you must state it)
+quantile = 0.75                       # selected: index >= this quantile of the district values (pandas linear
+                                      #   interpolation, as for the default index); called "Q4" only at 0.75
+ties = "include"                      # districts tied at the threshold are selected and listed
+missing = "error"                     # "error" | "not_priority" (district kept, not selected, listed)
+expected_count = 0                    # optional check of the number selected (0 = not checked)
+
+[vulnerability.priority_districts]    # a list of districts you supply (not called Q4)
+file = "data/example_city/priority_districts.csv"  # <-- REPLACE: one row per priority district
+separator = ","
+encoding = "utf-8"
+district_id_column = "district_id"
+label = "<-- REPLACE: name of the programme or list"
+definition = "<-- REPLACE: source and selection rule"
+expected_count = 0
+
+# ======================================================================== candidate sites
+[candidates]
+source = "residential_buildings"      # "residential_buildings" (as in Münster) | "file" (supplied sites)
+                                      #   | "demand_nodes" (experimental: buildability not assessed)
+file = ""                             # source = "file": points or polygons (CRS required)
+id_column = "site_id"
+name_column = ""                      # optional site name
+polygon_point = "representative_point"   # polygons: "representative_point" (a point inside the polygon) |
+                                      #   "centroid" (only where it lies inside the polygon); you must choose one
+eligible_column = ""                  # optional attribute deciding eligibility ...
+eligible_values = []                  # ... and the values that count as eligible
+max_snap_m = 100                      # candidates further from the network are rejected and reported
+boundary_site = "error"               # a site exactly on a district boundary: "error" | "lowest_id" (recorded per site)
+shared_node = "error"                 # two candidates on one network node: "error" | "keep_first" (lowest site_id
+                                      #   kept; every discarded candidate is reported)
+
+# ================================================================== model parameters
+[model_parameters]                    # values you leave out keep their defaults (the quantile is set above)
+facility_budget = 3
+walking_speed_m_per_min = 83.33
+
+[solver_resources]
+threads = 4
+nodefile_start = 0.5
+nodefile_min_free_gb = 50.0
+nodefile_dir = ""
+
+# [validation]                        # optional city expectations, e.g. district_count = 12

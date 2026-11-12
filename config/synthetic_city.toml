@@ -1,0 +1,146 @@
+# Synthetic example city ("Testburg"), filled in from config/city_template_schema1.toml.
+# Raw files: uv run python examples/synthetic_city/make_city.py   (writes examples/synthetic_city/data/)
+# Workflow:  uv run childcare-access check|build|solve|compare --city synthetic_city
+#
+# Paths are relative to the repository folder. The comments explain each setting; for what is a setting and what is
+# part of the method, see the header of config/city_template_schema1.toml and docs/APPLYING_TO_ANOTHER_CITY.md.
+
+[city]
+name = "Testburg (synthetic)"
+scenario = "synthetic_city"
+
+[crs]
+projected = 25832
+
+[workspace]
+root = "workspace/synthetic_city"
+
+# ------------------------------------------------------------------------------------------------- input data
+[sources.districts]                   # polygons of the statistical districts (any vector format with a CRS)
+file = "examples/synthetic_city/data/districts.gpkg"
+id_column = "district_id"
+name_column = "district_name"
+id_width = 0                          # zero-pad IDs to this width (0 = keep as is); must match the codes below
+
+[sources.forecast]                    # children per district, LONG table: one row per district x year x sex x age group
+file = "examples/synthetic_city/data/forecast.csv"
+year = 2030
+separator = ","
+encoding = "utf-8"
+area_column = "area"                  # area label containing the district code (and the city-total marker)
+year_column = "year"
+sex_column = "sex"
+age_column = "age_group"
+value_column = "value"
+all_sexes_value = "total"             # value of sex_column for both sexes together
+city_total_marker = "City total"      # substring of the area label of the citywide row (reported, not used)
+district_code_pattern = '^(\d+)'      # regex; group 1 = the district ID inside the area label
+
+[sources.forecast.age_groups]         # REQUIRED keys age_0_2 and age_3_5 -> the source labels of these age groups
+age_0_2 = "0-2"
+age_3_5 = "3-5"
+
+[sources.social]                      # district social indicators, LONG table: one row per district x time x indicator
+file = "examples/synthetic_city/data/social.csv"
+year = 2029
+separator = ","
+encoding = "utf-8"
+decimal = "."
+area_column = "area"
+time_column = "date"
+indicator_column = "indicator"
+value_column = "value"
+district_code_pattern = '^(\d+)'
+
+[sources.social.indicators]           # REQUIRED: exactly these four index columns -> the source indicator label.
+# Each must measure the concept named by its column (a percentage per district); describe any national equivalent below.
+pct_welfare_15_64 = "Basic income support 15-64 (%)"
+pct_welfare_0_14 = "Basic income support 0-14 (%)"
+pct_children_migration_background = "Children with migration background (%)"
+pct_children_single_parent = "Children in single-parent households (%)"
+
+[sources.social.indicator_definitions]   # free text, copied into the build report: source, definition, deviations
+pct_welfare_15_64 = "synthetic values (no real data)"
+pct_welfare_0_14 = "synthetic values (no real data)"
+pct_children_migration_background = "synthetic values (no real data)"
+pct_children_single_parent = "synthetic values (no real data)"
+
+[sources.buildings]                   # residential building footprints (any source; convert with adapters.buildings_layer)
+file = "examples/synthetic_city/data/buildings.gpkg"
+sha256 = ""                           # optional: recorded checksum, checked by build when set
+layer = "buildings"
+function_column = "function"          # building-use code
+object_type_column = "object_type"    # whole building vs building part
+building_value = "building"           # whole buildings are kept ...
+part_value = "part"                   # ... parts are dropped (no double counting)
+id_column = "building_id"
+mixed_use_code = "mixed"              # must be one of residential_codes
+
+[sources.buildings.residential_codes] # building-use codes counted as residential
+residential = "Residential building"
+mixed = "Mixed use with housing"
+
+[sources.dormitories]                 # exclusion of student-only residences (your reviewed decisions decide)
+exclude_min_share = 0.9
+report_min_share = 0.1
+student_pattern = "student|students"
+non_student_pattern = "family|senior"
+decisions_file = "examples/synthetic_city/data/student_residence_decisions.csv"   # columns building_id, decision (exclude/keep), category; may be empty
+decisions_sha256 = ""
+
+[sources.census]                      # census children on a regular grid (census-grid allocation within-district shares)
+file = "examples/synthetic_city/data/census_grid.zip"
+sha256 = ""
+member_suffix = "grid.csv"            # file name ending of the CSV inside the zip
+separator = ";"
+encoding = "utf-8"
+crs = 3035                            # projected CRS of the cell coordinates
+cell_size_m = 100
+id_column = "cell_id"
+x_column = "x_centre"                 # cell-centre coordinates
+y_column = "y_centre"
+count_columns = ["children_0_2", "children_3_5"]   # summed to children aged 0-5
+
+[osm]
+cache_dir = "cache"
+snapshot_timestamp = "synthetic"
+snapshot_dir = "examples/synthetic_city/data/osm"
+network_snapshot = "examples/synthetic_city/data/osm/highways.json"
+network_rule_set = "pedestrian_access_v3"
+overpass_url = "https://overpass-api.de/api/interpreter"
+user_agent = "childcare-access (research)"
+kita_file = "examples/synthetic_city/data/existing_facilities.geojson"   # existing facilities as points/polygons (offline)
+building_tags_source = "none"         # "none": no OSM dormitory screen; "cache": OSM building tags from the OSMnx cache
+
+[osm.kita_tags]                       # used only when kita_file is not set (OSMnx cache)
+amenity = "kindergarten"
+
+# ------------------------------------------------------------------------------------------------- outputs
+[outputs]                             # reference results of your city to compare with (if any); only read, never written
+final_inputs = "examples/synthetic_city/reference/inputs"
+final_run = "examples/synthetic_city/reference/run"
+audit = "examples/synthetic_city/reference/audit"
+
+# ------------------------------------------------------------------------------------------ model parameters
+[model_parameters]                    # values you leave out keep their defaults
+facility_budget = 3                   # P: number of new facilities
+walking_speed_m_per_min = 83.33
+least_advantaged_quantile = 0.5       # Q4 = districts with index >= this quantile (4 districts: 2 in Q4)
+time_limit_seconds = 60
+utilitarian_mip_gap = 0.01
+rawls_stage1_mip_gap = 0.001
+rawls_stage2_mip_gap = 0.01
+rawls_stage2_tolerances = [1e-6, 1e-4, 1e-3, 1e-2]
+district_time_limit_seconds = 60
+district_mip_gap = 1e-4
+
+[solver_resources]
+threads = 2
+nodefile_start = 0.5
+nodefile_min_free_gb = 1.0
+nodefile_dir = ""                     # "" = per-user default
+
+[validation]
+district_count = 4
+children_0_5_districts = 75
+children_0_5_city = 75

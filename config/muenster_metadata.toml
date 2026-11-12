@@ -1,0 +1,6 @@
+# Descriptive metadata of config/muenster.toml: labels and provenance only.
+# It never affects data loading, calculations, candidate selection or optimisation.
+
+[demand]
+census_year = 2022                    # reference date 15 May 2022
+census_source = "Zensus 2022, Alter in infrastrukturellen Altersgruppen, 100 m grid (Statistische Ämter des Bundes und der Länder)"

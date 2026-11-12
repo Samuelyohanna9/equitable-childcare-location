@@ -1,0 +1,69 @@
+{
+ "source": "examples/synthetic_city (make_city.py, config/synthetic_city.toml), built with the current code",
+ "exact": {
+  "districts": "3b61272dea672c80d2597c412ff28843a3cb8f91d177da7132d150ec4e3a333c",
+  "district_groups": "e17ccf2a710a2086a18a11b1f1cb555ff0f5a561a2c5db594820ee8bc51c27a9",
+  "children": "5cba660408aaa46ecf955cbd45964bd41d8bf4022a086e5adef73b798f8b9961",
+  "demand": "8327c28513e10b318a9e78e9325cc4004f40741ba7958f842e5fb5dbf0e3e6a3",
+  "candidates": "b81cc3a0315275809d92d57069cc41814a010dc8c30719df0bd2b40e7587c234",
+  "facilities": "9971646fe5727c4d0c18be294c96290e3d5c9c48aa59fa7edb2cb41e10f050f6",
+  "current_access": "fa07bf681568f7425ee1b355b48bcde9f1ef25ff2dab5d2b0ea1a2e2185cfb27",
+  "district_geometry": "4fb4f4c1b3f1b3d9c1fcfcef63d3dc52b40701a49813ffd3ed8fa1521ca099c3",
+  "relations": "1b5c04e6de4f3df19d505d34e3ca21fe424b7411346a5be21fd7341e84c08a3d",
+  "screen": "41ac730d46635b9f819f48a34414a5546f909629dbf0e58b877c19a608ff5d93",
+  "walk_graph_base": "bba9c4fae288628490986f44b7e0bb29f3e94de471733f40784081d78aaaad2f",
+  "walk_graph_layered": "1fbdbaca187a0e04e49f6420a0d1de94c2e42dcb9514fbf6bb08d3644fafac89",
+  "labels": "f695c265a2e7979bab7781e4e3b9c82f09d8ce97f2ae1d49f1c86e738d1a8ecc"
+ },
+ "summary": {
+  "districts": {
+   "rows": 4,
+   "childcare_vulnerability_index": 1.884375,
+   "least_advantaged": 2.0
+  },
+  "district_groups": {
+   "rows": 4,
+   "least_advantaged": 2.0
+  },
+  "children": {
+   "rows": 4,
+   "age_0_2": 33.0,
+   "age_3_5": 42.0,
+   "children_0_5": 75.0
+  },
+  "demand": {
+   "rows": 17,
+   "estimated_demand": 75.0,
+   "age_0_2": 32.99999999999999,
+   "age_3_5": 42.0,
+   "least_advantaged": 9.0
+  },
+  "candidates": {
+   "rows": 16
+  },
+  "facilities": {
+   "rows": 1
+  },
+  "current_access": {
+   "rows": 17,
+   "current_walk_time": 103.00178205310996
+  },
+  "district_geometry": {
+   "rows": 4
+  },
+  "relations": {
+   "pairs": 181,
+   "candidates": 16,
+   "time_sum": 621.7724257760058
+  },
+  "screen": {
+   "retained": 8
+  }
+ },
+ "file_sha256": {
+  "inputs_bundle.pkl": "202a8b74c5d5a891423ad678f22d108b39870b02ccb35465b6cbc19992d2232d",
+  "sparse_relations_all_demand.pkl": "f85629d6325c6872e8d7867f3df4bdf7ee3cfc6b12a7f71b34ee7c865bb4ca7e",
+  "walk_graph_base.pkl": "fcf218c9ce8517154d2004ead05ff6755e67e368040b92124274e9851fa38dd9",
+  "walk_graph_layered.pkl": "1c95986c885ec8d5e88d4bc64a6caea01b48c7953e116841ec1b0851f88bbe62"
+ }
+}

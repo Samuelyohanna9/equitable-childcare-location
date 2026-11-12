@@ -1,0 +1,103 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "childcare-access"
+version = "0.1.0"
+description = "Where to open new childcare facilities: efficiency and Rawlsian facility-location models for walking access, for any city."
+readme = "README.md"
+# Tested on Python 3.12, 3.13 and 3.14 (reference: .python-version).
+requires-python = ">=3.12,<3.15"
+authors = [
+  { name = "Samuel Yohanna" },
+]
+dependencies = [
+  "geopandas>=1.0.0",
+  "matplotlib>=3.9.0",
+  "networkx>=3.3",
+  "numpy>=2.0.0",
+  "osmnx>=2.0.0",
+  "pandas>=2.2.0",
+  "pyproj>=3.6.0",       # CRS transforms (EPSG:25832 / 3035), used through geopandas
+  "requests>=2.31.0",
+  "shapely>=2.0.0",
+]
+
+[project.scripts]
+childcare-access = "childcare_access.cli:main"
+
+[dependency-groups]
+# Gurobi (with a licence) is needed to solve the models. Installed by default; without it:
+#   uv sync --no-group solve
+solve = [
+  "gurobipy>=11.0.0",
+]
+dev = [
+  "ipykernel>=6.29.0",
+  "ipywidgets>=8.1.0",     # the widgets of custom_city_analysis.ipynb
+  "jupyterlab>=4.2.0",
+  "nbconvert>=7.16.0",
+  "pytest>=8.3.0",
+]
+
+[tool.uv]
+default-groups = ["dev", "solve"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/childcare_access"]
+
+# Code style. Check and format with:
+#   uv run ruff check .
+#   uv run ruff format .
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.format]
+# The example notebook keeps the code that produced its saved outputs.
+exclude = ["muenster_example.ipynb"]
+
+[tool.ruff.lint]
+select = [
+  "E", "W",    # pycodestyle
+  "F",         # pyflakes
+  "I",         # import order
+  "N",         # PEP 8 naming
+  "D",         # docstrings
+  "ANN",       # type annotations
+  "UP",        # modern syntax for the supported Python versions
+  "B",         # likely bugs
+  "C4",        # comprehensions
+  "SIM",       # simplifications
+  "RET",       # return statements
+  "PTH",       # pathlib instead of os.path
+  "PERF",      # avoidable slow patterns
+  "PL",        # pylint
+  "RUF",       # ruff-specific rules
+]
+ignore = [
+  "D105", "D107",   # magic methods and __init__ are documented in the class docstring
+  "ANN401",         # Any is used deliberately for solver and pickle objects
+  "N803", "N806",   # mathematical names (P, D, X) follow the notation of docs/METHODS.md
+  "N818",           # exceptions shown to notebook readers are named for them (StepProblem, DownloadFailed)
+  "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR0917", "PLR2004",  # size and literal heuristics
+  "PLC0415",        # optional dependencies (gurobipy, osmnx, ipywidgets) are imported lazily
+  "PERF401",        # an explicit loop is kept where it reads better than list.extend(...)
+  "RUF001", "RUF002", "RUF003",  # intentional non-ASCII text (German names, ×, –, ≤)
+  "RUF046",         # int(round(x)) is kept explicit: round() of a NumPy float is not always an int
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Test names describe the behaviour; fixtures and helpers stay unannotated.
+"tests/**" = ["D103", "ANN", "PLR2004", "PLW0603"]
+# Notebooks: markdown cells document the code; the cells call the package and define no API.
+"*.ipynb" = ["D", "ANN", "E501", "B905", "RUF007"]
+# The modules that compute the results keep their code exactly as it produced the Münster results; lint rules whose
+# fixes would rewrite that code are not applied to them.
+"src/childcare_access/{core,all_demand_candidates,district_demand_maximin,solutions,demand,vulnerability,pedestrian_network,optimisation}.py" = [
+  "B", "C4", "E402", "E731", "E741", "F403", "F811", "F841", "N", "PERF", "PL", "PTH", "RET", "RUF", "SIM", "UP",
+]

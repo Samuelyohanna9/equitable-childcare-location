@@ -1,0 +1,151 @@
+# Settings template for a city (older layout, version 1; for a new city use config/city_template.toml).
+#
+# How to use it: copy this file to config/<city>.toml, replace every value marked  <-- REPLACE  and run
+#     uv run childcare-access check --config config/<city>.toml
+# It reports missing files and columns, an unsuitable CRS and settings that do not fit together. Then run
+#     uv run childcare-access build --config config/<city>.toml
+#     uv run childcare-access solve --config config/<city>.toml
+#
+# What you set here: your city's data (files, column layout, CRS, identifiers, years, labels, codes), the model
+# parameters ([model_parameters]) and the workspace folder. What is part of the method and not a setting: the three
+# objectives, the rule that each child walks to the nearest open facility, the vulnerability index (four indicators,
+# equal weights), the priority group Q4 ("index >= quantile") and the way children are placed in buildings (census-grid
+# shares within districts, footprint shares within cells). See docs/APPLYING_TO_ANOTHER_CITY.md.
+# Paths are relative to the repository folder, or absolute.
+
+[city]
+name = "Example City"                 # <-- REPLACE
+scenario = "example_city"             # <-- REPLACE: short name, used for node-file folders
+
+[crs]
+projected = 25832                     # <-- REPLACE: a projected CRS in metres covering the city (e.g. the local UTM zone)
+
+[workspace]
+root = "workspace/example_city"       # <-- REPLACE: where build/solve/compare write (git-ignored)
+
+# ------------------------------------------------------------------------------------------------- input data
+[sources.districts]                   # polygons of the statistical districts (any vector format with a CRS)
+file = "data/example_city/districts.gpkg"   # <-- REPLACE
+id_column = "district_id"             # <-- REPLACE: district identifier column
+name_column = "district_name"         # <-- REPLACE: district name column
+id_width = 0                          # zero-pad IDs to this width (0 = keep as is); must match the codes below
+
+[sources.forecast]                    # children per district, LONG table: one row per district x year x sex x age group
+file = "data/example_city/forecast.csv"     # <-- REPLACE (convert wide tables with childcare_access.adapters.wide_to_long)
+year = 2026                           # <-- REPLACE: projection year used
+separator = ","
+encoding = "utf-8"
+area_column = "area"                  # area label containing the district code (and the city-total marker)
+year_column = "year"
+sex_column = "sex"
+age_column = "age_group"
+value_column = "value"
+all_sexes_value = "total"             # value of sex_column for both sexes together
+city_total_marker = "City total"      # substring of the area label of the citywide row (reported, not used)
+district_code_pattern = '^(\d+)'      # regex; group 1 = the district ID inside the area label
+
+[sources.forecast.age_groups]         # REQUIRED keys age_0_2 and age_3_5 -> the source labels of these age groups
+age_0_2 = "0-2"                       # <-- REPLACE
+age_3_5 = "3-5"                       # <-- REPLACE
+
+[sources.social]                      # district social indicators, LONG table: one row per district x time x indicator
+file = "data/example_city/social.csv"       # <-- REPLACE
+year = 2025                           # <-- REPLACE: indicator year (time values must END with this year)
+separator = ","
+encoding = "utf-8"
+decimal = "."
+area_column = "area"
+time_column = "date"
+indicator_column = "indicator"
+value_column = "value"
+district_code_pattern = '^(\d+)'
+
+[sources.social.indicators]           # REQUIRED: exactly these four index columns -> the source indicator label.
+# Each must measure the concept named by its column (a percentage per district); describe any national equivalent below.
+pct_welfare_15_64 = "Share of residents aged 15-64 receiving means-tested basic income support (%)"   # <-- REPLACE
+pct_welfare_0_14 = "Share of children aged 0-14 receiving means-tested basic income support (%)"     # <-- REPLACE
+pct_children_migration_background = "Share of children with a migration background (%)"           # <-- REPLACE
+pct_children_single_parent = "Share of children living in single-parent households (%)"            # <-- REPLACE
+
+[sources.social.indicator_definitions]   # free text, copied into the build report: source, definition, deviations
+pct_welfare_15_64 = "<-- REPLACE: publisher, table, exact definition; differences from the German SGB II rate"
+pct_welfare_0_14 = "<-- REPLACE"
+pct_children_migration_background = "<-- REPLACE"
+pct_children_single_parent = "<-- REPLACE"
+
+[sources.buildings]                   # residential building footprints (any source; convert with adapters.buildings_layer)
+file = "data/example_city/buildings.gpkg"   # <-- REPLACE
+sha256 = ""                           # optional: recorded checksum, checked by build when set
+layer = "buildings"
+function_column = "function"          # building-use code
+object_type_column = "object_type"    # whole building vs building part
+building_value = "building"           # whole buildings are kept ...
+part_value = "part"                   # ... parts are dropped (no double counting)
+id_column = "building_id"
+mixed_use_code = "mixed"              # must be one of residential_codes
+
+[sources.buildings.residential_codes] # building-use codes counted as residential
+residential = "Residential building"
+mixed = "Mixed use with housing"
+
+[sources.dormitories]                 # exclusion of student-only residences (your reviewed decisions decide)
+exclude_min_share = 0.9
+report_min_share = 0.1
+student_pattern = "student|students"
+non_student_pattern = "family|senior"
+decisions_file = "data/example_city/student_residence_decisions.csv"   # columns building_id, decision (exclude/keep), category; may be empty
+decisions_sha256 = ""
+
+[sources.census]                      # census children on a regular grid (census-grid allocation within-district shares)
+file = "data/example_city/census_grid.zip"  # <-- REPLACE: zip containing one CSV
+sha256 = ""
+member_suffix = "grid.csv"            # file name ending of the CSV inside the zip
+separator = ";"
+encoding = "utf-8"
+crs = 3035                            # projected CRS of the cell coordinates
+cell_size_m = 100
+id_column = "cell_id"
+x_column = "x_centre"                 # cell-centre coordinates
+y_column = "y_centre"
+count_columns = ["children_0_2", "children_3_5"]   # summed to children aged 0-5
+
+[osm]
+cache_dir = "cache"
+snapshot_timestamp = "YYYY-MM-DDThh:mm:ssZ"   # <-- REPLACE: OSM state of the network snapshot
+snapshot_dir = "data/example_city/osm"
+network_snapshot = "data/example_city/osm/highways.json"   # <-- REPLACE: Overpass JSON (all highway ways, with tags)
+network_rule_set = "pedestrian_access_v3"
+overpass_url = "https://overpass-api.de/api/interpreter"
+user_agent = "childcare-access (research)"
+kita_file = "data/example_city/existing_facilities.geojson"   # existing facilities as points/polygons (offline)
+building_tags_source = "none"         # "none": no OSM dormitory screen; "cache": OSM building tags from the OSMnx cache
+
+[osm.kita_tags]                       # used only when kita_file is not set (OSMnx cache)
+amenity = "kindergarten"
+
+# ------------------------------------------------------------------------------------------------- outputs
+[outputs]                             # reference results of your city to compare with (if any); only read, never written
+final_inputs = "results/example_city/inputs"
+final_run = "results/example_city/run"
+audit = "results/example_city/audit"
+
+# ------------------------------------------------------------------------------------------ model parameters
+[model_parameters]                    # values you leave out keep the defaults shown here
+facility_budget = 3                   # P: number of new facilities
+walking_speed_m_per_min = 83.33
+least_advantaged_quantile = 0.75      # Q4 = districts with index >= this quantile
+time_limit_seconds = 900
+utilitarian_mip_gap = 0.01
+rawls_stage1_mip_gap = 0.001
+rawls_stage2_mip_gap = 0.01
+rawls_stage2_tolerances = [1e-6, 1e-4, 1e-3, 1e-2]
+district_time_limit_seconds = 3600
+district_mip_gap = 1e-4
+
+[solver_resources]
+threads = 4
+nodefile_start = 0.5
+nodefile_min_free_gb = 50.0
+nodefile_dir = ""                     # "" = per-user default
+
+# [validation]                        # optional city expectations, e.g. district_count = 12

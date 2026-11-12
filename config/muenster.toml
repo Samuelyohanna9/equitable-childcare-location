@@ -1,0 +1,152 @@
+# Settings for Münster: the case study of the MSc thesis (final analysis 2025/26).
+#
+# All paths are relative to the project root. The data are not part of this repository; the sources are listed in
+# docs/MUENSTER_DATA_SOURCES.md. For a new city start from config/city_template.toml instead.
+
+[city]
+name = "Münster"
+scenario = "primary_2025_26"          # name of the analysis; used for output and node-file folders
+
+[crs]
+projected = 25832                     # metric CRS for all local geometry (ETRS89 / UTM zone 32N)
+
+# ------------------------------------------------------------------------------------------------ input data
+[sources.districts]
+file = "data/muenster/muenster_districts.geojson"                 # district polygons with an ID and a name per district
+id_column = "district_id"
+name_column = "district_name"
+id_width = 2                          # IDs are zero-padded to this width ("1" -> "01"); 0 = no padding
+
+[sources.forecast]                    # projected children per district (long table, one row per value)
+file = "data/muenster/muenster_population_forecast.csv"
+year = 2026
+separator = ";"
+encoding = "utf-8-sig"
+area_column = "RAUM"
+year_column = "ZEIT"
+sex_column = "GESCHLECHT"
+age_column = "ALTERSGRUPPE"
+value_column = "WERT"
+all_sexes_value = "insgesamt"
+city_total_marker = "Gesamtstadt"     # substring of the area label of the citywide row (kept separately)
+district_code_pattern = '^(\d{2})\s'  # regex; group 1 = district ID within the area label ("23 Bahnhof")
+
+[sources.forecast.age_groups]         # output column -> source age label
+age_0_2 = "00 - 02 Jahre"
+age_3_5 = "03 - 05 Jahre"
+
+[sources.social]                      # district social indicators (long table)
+file = "data/muenster/muenster_social_indicators.csv"
+year = 2025
+separator = ";"
+encoding = "cp1252"
+decimal = ","
+area_column = "RAUM"
+time_column = "ZEIT"                  # values end with the year, e.g. "31.12.2025"
+indicator_column = "MERKMAL"
+value_column = "WERT"
+district_code_pattern = '^(\d{2})\s'
+
+[sources.social.indicators]           # index column of the method -> source indicator label
+pct_welfare_15_64 = "Anteil der SGB II Personen im Alter von 15 - 64 Jahren - Kernindikator 1"
+pct_welfare_0_14 = "Anteil der SGB II Personen im Alter von 0 - 14 Jahren - Kernindikator 2"
+pct_children_migration_background = "Anteil der Kinder mit Migrationsvorgeschichte an allen Kindern - Kernindikator 3"
+pct_children_single_parent = "Anteil der Kinder in alleinerziehenden Haushalten an allen Kindern in Haushalten - Kontextindikator 1"
+
+[sources.social.indicator_definitions]   # meaning of each index indicator (documentation; recorded in build reports)
+pct_welfare_15_64 = "Stadt Münster, Bevölkerungsindikatoren - Soziales, Kernindikator 1: share of residents aged 15-64 receiving SGB II basic income support, per district, 31 Dec"
+pct_welfare_0_14 = "Kernindikator 2: share of residents aged 0-14 receiving SGB II basic income support, per district, 31 Dec"
+pct_children_migration_background = "Kernindikator 3: share of children (aged 0-17) with a migration history (Migrationsvorgeschichte: register-based, nationality and birthplace; not the federal Migrationshintergrund) among all children, per district, 31 Dec"
+pct_children_single_parent = "Kontextindikator 1: share of children (under 18 without own household) living in single-parent households among all children in households, per district, 31 Dec"
+
+[sources.buildings]                   # official building footprints (ALKIS, simplified product)
+file = "data/muenster/alkis/gru_vereinf_05515000_Muenster_EPSG25832.gpkg"
+sha256 = "571d10cc6f60218d3202d62e94eb8fe1a95e8b2f24cff70c91c74575c0909609"
+layer = "GebauedeBauwerk"             # layer name as published (sic)
+function_column = "gfkzshh"
+object_type_column = "gebnutzbez"
+building_value = "Gebäude"            # whole buildings are kept ...
+part_value = "Bauteil"                # ... building parts are excluded (no double counting)
+id_column = "oid"
+mixed_use_code = "31001_1100"
+
+[sources.buildings.residential_codes] # building-function codes accepted as residential
+31001_1000 = "Wohngebäude"
+31001_1100 = "Gemischt genutztes Gebäude mit Wohnen"
+
+[sources.dormitories]                 # exclusion of student-only residences
+exclude_min_share = 0.9
+report_min_share = 0.1
+student_pattern = "studierendenwerk|studentenwerk|studenten|studierenden|student"
+non_student_pattern = "familie|family|senior|pflege|schwestern|azubi|auszubildende"
+decisions_file = "data/muenster/student_residence_decisions.csv"
+decisions_sha256 = "bfa00beee77938626d07d695dcf1da7d745b83dc4bb5b41aa72f71f2b57e9292"
+
+[sources.census]                      # census children on a regular grid (within-district allocation)
+file = "data/muenster/census2022/Alter_in_infrastrukturellen_Altersgruppen.zip"
+sha256 = "b6ffd5604ec18eed5596f1a3b83b9fd333d79019ef53cf5d1910e1cbce330758"
+member_suffix = "100m-Gitter.csv"     # CSV inside the zip
+separator = ";"
+encoding = "utf-8-sig"
+crs = 3035                            # grid CRS
+cell_size_m = 100
+id_column = "GITTER_ID_100M"
+x_column = "x_mp_100m"                # cell-centre coordinates
+y_column = "y_mp_100m"
+count_columns = ["Unter3", "a3bis5"]  # summed to children aged 0-5
+
+[osm]
+cache_dir = "cache"                   # OSMnx cache (Kitas, building tags; network of earlier versions)
+snapshot_timestamp = "2026-06-20T19:49:26Z"
+snapshot_dir = "data/muenster/osm"
+network_snapshot = "data/muenster/osm/overpass_highways_2026-06-20_merged.json"
+network_rule_set = "pedestrian_access_v3"
+overpass_url = "https://overpass-api.de/api/interpreter"
+user_agent = "MSc thesis Muenster Kita accessibility (one-off)"
+
+[osm.kita_tags]                       # OSM tags of existing childcare facilities
+amenity = "kindergarten"
+
+# --------------------------------------------------------------------------------------------- outputs
+[outputs]
+final_inputs = "data/muenster/model_inputs"      # the final model inputs (not included; available from the author)
+final_run = "results/muenster/solutions"          # the saved P = 3 solutions (not included)
+audit = "results/muenster/audit"                  # the checked results table (not included)
+
+[workspace]                           # where build/solve/compare write (never the folders above)
+root = "workspace/muenster"
+
+# --------------------------------------------------------------------------- reported solutions and parameters
+[reproducibility]
+name = "Münster MSc thesis, final analysis (P=3, pedestrian_access_v3, census-grid allocation)"
+individual_note = "The Gurobi two-stage solution is reported: Stage 1 is proven optimal, Stage 2 reached its 900 s time limit with one solution (the Stage 1 start), so the reported sites are the Stage 1 optimum and their Q4 dispersion is not proven minimal"
+
+[reproducibility.reported_sites]      # facility sites reported in the thesis (checked when results are loaded)
+utilitarian = ["all_demand_candidate_10036", "all_demand_candidate_15388", "all_demand_candidate_18208"]
+individual = ["all_demand_candidate_6143", "all_demand_candidate_7307", "all_demand_candidate_7759"]
+district = ["all_demand_candidate_15388", "all_demand_candidate_18208", "all_demand_candidate_3945"]
+
+[model_parameters]                    # the parameters of the thesis analysis
+facility_budget = 3
+walking_speed_m_per_min = 83.33
+least_advantaged_quantile = 0.75
+time_limit_seconds = 900
+utilitarian_mip_gap = 0.01
+rawls_stage1_mip_gap = 0.001
+rawls_stage2_mip_gap = 0.01
+rawls_stage2_tolerances = [1e-6, 1e-4, 1e-3, 1e-2]
+district_time_limit_seconds = 3600
+district_mip_gap = 1e-4
+
+[solver_resources]                    # memory/thread behaviour only; objectives unchanged
+threads = 4
+nodefile_start = 0.5
+nodefile_min_free_gb = 50.0
+nodefile_dir = ""                     # "" = per-user default (Windows: %USERPROFILE%/AppData/Local/gurobi_nodefiles)
+
+# ----------------------------------------------------- Münster-only expectations (validation, not method)
+[validation]
+district_count = 45
+children_0_5_districts = 14960
+children_0_5_city = 14965             # citywide row; differs by 5 because the forecast rounds every cell
+
