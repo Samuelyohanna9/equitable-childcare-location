@@ -3,7 +3,7 @@
 Where should a city open new childcare facilities (Kitas) so that children can walk to them? This repository answers
 that question for any city with three facility-location models and compares an efficient answer with two fair ones.
 It is the code of the MSc thesis *Beyond Efficiency: A Rawlsian Approach to Facility Location for Equitable Access to
-Urban Opportunities* (Samuel Yohanna), with Münster, Germany, as the worked example.
+Urban Opportunities* (Samuel Yohanna supervised by Dr. Filippe Oliveira Feitosa) with Münster, Germany, as the worked example.
 
 The models choose **P** new sites (default 3) from candidate sites, and every child walks to the nearest open facility:
 
